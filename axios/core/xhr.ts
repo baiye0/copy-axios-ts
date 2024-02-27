@@ -1,9 +1,22 @@
-import { AxiosPromise, AxiosRequestConfig, AxiosResponse } from "./types";
-import { parseHeaders } from "./helpers/headers";
+import {
+  AxiosPromise,
+  AxiosRequestConfig,
+  AxiosResponse,
+  AxiosError,
+} from "../types";
+import { parseHeaders } from "../helpers/headers";
+import { createError } from "../helpers/errors";
 
 export default function xhr(config: AxiosRequestConfig): AxiosPromise {
   return new Promise((resolve, reject) => {
-    const { data = null, url, method = "get", headers, responseType } = config;
+    const {
+      data = null,
+      url,
+      method = "get",
+      headers,
+      responseType,
+      timeout,
+    } = config;
     //1.创建一个XMLHttpRequest实例
     const request = new XMLHttpRequest();
     //2.配置请求参数
@@ -22,6 +35,9 @@ export default function xhr(config: AxiosRequestConfig): AxiosPromise {
 
     // 4.注册事件，拿到响应信息
     request.onreadystatechange = function handleLoad() {
+      if (request.status === 0) {
+        return;
+      }
       if (request.readyState !== 4) {
         return;
       }
@@ -38,7 +54,42 @@ export default function xhr(config: AxiosRequestConfig): AxiosPromise {
         config,
         request,
       };
-      resolve(response);
+      handleResponse(response);
     };
+
+    //4.1 网络错误
+    request.onerror = function () {
+      reject(createError("Network Error", config, null, request));
+    };
+
+    if (timeout) {
+      request.timeout = timeout;
+    }
+
+    request.ontimeout = function () {
+      reject(
+        createError(
+          `Timeout of ${timeout} ms exceeded`,
+          config,
+          "TIMEOUT",
+          request
+        )
+      );
+    };
+    function handleResponse(response: AxiosResponse) {
+      if (response.status >= 200 && response.status < 300) {
+        resolve(response);
+      } else {
+        reject(
+          createError(
+            `Request failed with status code ${response.status}`,
+            config,
+            request.status,
+            request,
+            response
+          )
+        );
+      }
+    }
   });
 }
