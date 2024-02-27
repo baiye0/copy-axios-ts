@@ -2,11 +2,10 @@ import axios from "../axios/axios";
 
 export async function getBase() {
   console.log(axios);
-  axios({
-    url: "/api/expandInterface/post",
+  axios("/api/expandInterface/post", {
     method: "post",
     data: {
-      msg: "hi",
+      msg: "hello",
     },
   });
 
